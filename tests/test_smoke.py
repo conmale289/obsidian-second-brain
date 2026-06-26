@@ -70,6 +70,17 @@ def test_hermes_build_generates_native_skills():
     # Calendar/scheduled commands are Claude-only and must not leak to Hermes.
     assert not (REPO_ROOT / "dist/hermes/skills/vault/obsidian-calendar").exists()
 
+    # Scheduled agents emit as opt-in blueprint skills under optional-skills/
+    # (not auto-armed skills/), each carrying a cron schedule.
+    nightly = REPO_ROOT / "dist/hermes/optional-skills/obsidian-nightly/SKILL.md"
+    assert nightly.is_file()
+    blueprint = nightly.read_text(encoding="utf-8")
+    assert "blueprint:" in blueprint
+    assert 'schedule: "0 22 * * *"' in blueprint
+    # The opt-in arming surface, not the auto-loaded one.
+    assert not (REPO_ROOT / "dist/hermes/skills/scheduled").exists()
+    assert (REPO_ROOT / "dist/hermes/HOOKS.md").is_file()
+
 
 def test_vault_health_json_reports_clean_linked_vault(tmp_path):
     """A minimal two-note vault with reciprocal wikilinks should report zero

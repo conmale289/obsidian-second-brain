@@ -30,9 +30,11 @@ adapter_build() {
 
   HERMES_VERSION="$(_hermes_version "$src")"
   _hermes_emit_skills "$src/commands" "$dst/$HERMES_SKILLS_DIR"
+  _hermes_emit_blueprints "$dst/optional-skills"
   _hermes_copy_references "$src/references" "$dst/references"
   _hermes_copy_scripts "$src/scripts" "$dst/scripts"
   _hermes_emit_install_hint "$dst"
+  _hermes_emit_hooks_doc "$dst"
 }
 
 # Read the project version from pyproject.toml so SKILL.md `version:` tracks
@@ -100,6 +102,147 @@ _hermes_emit_skills() {
   done
 }
 
+# Emit the four scheduled agents (SKILL.md "Scheduled Agents" section) as native
+# Hermes blueprint skills - `metadata.hermes.blueprint` with a cron `schedule`.
+# They go under optional-skills/ (NOT skills/) on purpose: a blueprint arms as
+# soon as its skill is loaded, and the scheduled agents are opt-in by design
+# (the Claude side ships inert and requires explicit /schedule). optional-skills
+# require an explicit `hermes skills install <name>`, which preserves that
+# opt-in arming contract. SKILL.md remains the canonical source for the prompts.
+_hermes_emit_blueprints() {
+  local dst="$1"
+  mkdir -p "$dst"
+
+  _hermes_write_blueprint "$dst" obsidian-morning "0 8 * * *" "daily at 8:00 AM" \
+"Create today's daily note and surface what needs attention. Runs unattended on schedule." \
+"Read \`_CLAUDE.md\`. Create today's daily note in \`Daily/\` using the Daily Note template.
+Pull in any tasks from kanban boards that are due today or overdue.
+List any projects with status active that have no recent activity in the last 7 days.
+Do not ask questions - infer everything from the vault. Save and stop."
+
+  _hermes_write_blueprint "$dst" obsidian-nightly "0 22 * * *" "daily at 10:00 PM" \
+"Sleeptime consolidation - the vault gets smarter overnight. The cron-native counterpart to the Claude PostCompact maintenance pass." \
+"Read \`_CLAUDE.md\`. This is a sleeptime consolidation pass - the vault should be smarter when the user wakes up.
+
+Phase 1 - Close the day:
+- Read today's daily note. Append a ## End of Day section with a 3-5 bullet summary.
+- Move any completed kanban tasks to Done.
+
+Phase 2 - Reconcile:
+- Scan \`wiki/entities/\` for outdated roles, companies, or descriptions that conflict with newer daily notes.
+- Scan \`wiki/concepts/\` for claims contradicted by recently ingested sources.
+- Auto-resolve clear winners. Flag ambiguous ones in \`wiki/decisions/\`.
+
+Phase 3 - Synthesize:
+- Scan sources ingested today and yesterday. Find concepts that appear in 2+ unrelated sources.
+- If patterns found: create \`wiki/concepts/Synthesis - Title.md\` with evidence and interpretation.
+
+Phase 4 - Heal:
+- Find notes created today with no incoming links. Add links from relevant existing pages.
+- Close entity timeline entries missing an \"until\" date that should be closed.
+- Rebuild \`index.md\` to reflect today's changes.
+
+Phase 5 - Log:
+- Append to \`log.md\`: ## [YYYY-MM-DD] nightly | End of day + X reconciled, Y synthesized, Z orphans linked
+
+Do not ask questions. Do not fix anything destructive - only add, update, link. Save and stop."
+
+  _hermes_write_blueprint "$dst" obsidian-weekly "0 18 * * 5" "every Friday at 6:00 PM" \
+"Generate a weekly review note from the vault. Runs unattended on schedule." \
+"Read \`_CLAUDE.md\`. Run the obsidian-recap skill for the week to gather this week's activity.
+Generate a weekly review note using the Review template (or standard structure if none exists).
+Save to \`Reviews/YYYY-MM-DD - Weekly Review.md\`.
+Link it from this week's last daily note.
+Do not ask questions. Save and stop."
+
+  _hermes_write_blueprint "$dst" obsidian-health-check "0 21 * * 0" "every Sunday at 9:00 PM" \
+"Run the vault health check and log a report (report only, never auto-fixes)." \
+"Read \`_CLAUDE.md\`. Run: \`uv run -m scripts.vault_health --path <vault> --json\`
+Parse the output. Write a health report to \`Knowledge/Vault Health YYYY-MM-DD.md\`
+summarizing findings by severity (critical, warning, info).
+Do not fix anything autonomously - only report.
+Do not ask questions. Save and stop."
+}
+
+# _hermes_write_blueprint <dst> <name> <schedule> <human_time> <short_prompt> <body>
+_hermes_write_blueprint() {
+  local dst="$1" name="$2" schedule="$3" human="$4" short="$5" body="$6"
+  mkdir -p "$dst/$name"
+  {
+    echo "---"
+    echo "name: $name"
+    printf 'description: "%s Schedule: %s."\n' "${short//\"/\\\"}" "$human"
+    echo "version: $HERMES_VERSION"
+    printf 'author: "%s"\n' "$HERMES_AUTHOR"
+    echo "license: $HERMES_LICENSE"
+    echo "metadata:"
+    echo "  hermes:"
+    echo "    tags: [obsidian-second-brain, scheduled]"
+    echo "    blueprint:"
+    printf '      schedule: "%s"\n' "$schedule"
+    echo "      deliver: origin"
+    printf '      prompt: "Run the %s scheduled vault maintenance. Follow the procedure below exactly; do not ask questions; save and stop."\n' "$name"
+    echo "      no_agent: false"
+    echo "---"
+    echo
+    echo "## When to use"
+    echo
+    echo "Runs automatically on its blueprint schedule ($human). Can also be run on demand. Opt-in: install with \`hermes skills install $name\` to arm the schedule."
+    echo
+    echo "## Procedure"
+    echo
+    echo "$body"
+  } > "$dst/$name/SKILL.md"
+}
+
+# Box 4 - the lifecycle-hook story, told honestly. Hermes's session-lifecycle
+# hook config is not documented as of this build, so we ship guidance rather
+# than a config that might not load. The nightly blueprint is the cron-native
+# substitute for the Claude PostCompact maintenance pass.
+_hermes_emit_hooks_doc() {
+  local dst="$1"
+  cat > "$dst/HOOKS.md" <<'EOF'
+# Hermes: scheduled maintenance and the PostCompact analog
+
+The Claude Code build maintains the vault two ways: opt-in scheduled agents
+(`/schedule`) and an opt-in PostCompact hook (`hooks/obsidian-bg-agent.sh`) that
+propagates conversation context into the vault after the context is compacted.
+This documents the Hermes equivalents.
+
+## Scheduled maintenance (cron) - shipped
+
+The four scheduled agents are emitted as native Hermes blueprint skills under
+`optional-skills/`:
+
+| Skill | Schedule | Does |
+|---|---|---|
+| `obsidian-morning` | `0 8 * * *` | Create today's daily note, surface due/overdue + stale projects |
+| `obsidian-nightly` | `0 22 * * *` | Sleeptime consolidation: close day, reconcile, synthesize, heal, log |
+| `obsidian-weekly` | `0 18 * * 5` | Generate the weekly review note |
+| `obsidian-health-check` | `0 21 * * 0` | Vault health report (report only) |
+
+They live in `optional-skills/` (not `skills/`) on purpose: a Hermes blueprint
+arms as soon as its skill is loaded, and these are opt-in by design. Arm one
+with `hermes skills install <name>`; it then runs unattended on its schedule.
+None of them delete or archive - they only add, update, link.
+
+## PostCompact analog (lifecycle hook) - partly shipped, needs a live-Hermes seam
+
+The Claude PostCompact hook fires on context compaction. Two notes on Hermes:
+
+1. **Cron substitute (shipped).** `obsidian-nightly` performs the same
+   consolidation/reconcile/heal pass the PostCompact agent does, on a daily
+   cadence rather than per-compaction. For most users this covers the need.
+2. **True lifecycle hook (open).** If/when Hermes exposes a session-lifecycle
+   event (session end / pre-compaction / background review), wire the existing
+   `scripts/`-backed maintenance logic to it. Preserve the Claude trust model:
+   gate on `OBSIDIAN_VAULT_PATH` plus an explicit enable flag so it ships inert,
+   never deletes, and only adds/updates/links. The exact Hermes hook event name
+   and registration format must be confirmed against a live Hermes runtime -
+   that is the one piece this build cannot verify (tracked in Issue #79).
+EOF
+}
+
 _hermes_copy_references() {
   local src="$1" dst="$2"
   [[ -d "$src" ]] || return 0
@@ -153,8 +296,21 @@ Then in Hermes:
 - Python helpers under `scripts/` run via `uv run -m scripts.research.<name>`
   from the vault root.
 
+## Scheduled agents (opt-in)
+
+The four scheduled maintenance agents are emitted as native Hermes blueprint
+skills under `optional-skills/` (morning / nightly / weekly / health-check).
+They are NOT auto-armed - install one explicitly to arm its schedule:
+
+```bash
+cp -R dist/hermes/optional-skills/. ~/.hermes/optional-skills/
+hermes skills install obsidian-nightly   # arms the 10pm consolidation pass
+```
+
+See `HOOKS.md` for the full schedule table and the PostCompact-analog story.
+
 Point Hermes at your vault as the working directory, or pair these skills with
 the MCP connector (`integrations/obsidian-mcp-server/`) for bounded vault data
-access. Scheduled-agent and lifecycle pieces are tracked in Issue #79.
+access. Remaining lifecycle-hook wiring is tracked in Issue #79.
 EOF
 }

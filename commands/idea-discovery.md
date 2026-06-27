@@ -9,7 +9,7 @@ Use the obsidian-second-brain skill. Execute `/idea-discovery`:
 Answers "what is worth doing next" from material already in the vault. Distinct from `/obsidian-emerge` (which names unstated patterns) and `/obsidian-graduate` (which promotes one chosen idea into a project) - this ranks several candidate directions so you can pick one.
 
 1. Gather candidate signals - list and grep exhaustively (see the anti-fabrication rule):
-   - Ungraduated ideas in `Ideas/` (status `captured` or `exploring`, not yet `graduated`).
+   - Ungraduated ideas in the ideas folder (resolved per `references/folder-map.md` - wiki-style `wiki/concepts/`, Obsidian-style `Ideas/`; status `captured` or `exploring`, not yet `graduated`).
    - Open questions in active project notes (Open Questions sections, unresolved decisions).
    - Orphan research notes in `Research/` that no project links to.
 2. Rank the candidates by a simple, stated heuristic: recency (touched recently), pull (how many notes reference or depend on it), and momentum (does anything already build toward it). State the heuristic in the output so the ranking is auditable.
@@ -21,4 +21,4 @@ Answers "what is worth doing next" from material already in the vault. Distinct 
 
 **AI-first rule:** Every note created or updated by this command MUST follow `references/ai-first-rules.md` - `## For future Claude` preamble, rich frontmatter (`type`, `date`, `tags`, `ai-first: true`, plus type-specific fields), recency markers per external claim, mandatory `[[wikilinks]]` for every person/project/concept referenced, sources preserved verbatim with URLs inline, and confidence levels where applicable. The vault is for future-Claude retrieval - not human reading.
 
-**Anti-fabrication:** Rank only real candidates found in the vault - never invent an idea, an open question, or a research note to pad the shortlist. Enumerate `Ideas/`, project Open Questions, and orphan research exhaustively rather than sampling. See the anti-fabrication and search-completeness hard rules in `references/ai-first-rules.md`.
+**Anti-fabrication:** Rank only real candidates found in the vault - never invent an idea, an open question, or a research note to pad the shortlist. Enumerate the ideas folder, project Open Questions, and orphan research exhaustively rather than sampling. See the anti-fabrication and search-completeness hard rules in `references/ai-first-rules.md`.

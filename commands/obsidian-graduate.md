@@ -6,11 +6,11 @@ triggers_en: ["promote idea", "graduate this to project", "make a project from t
 
 Use the obsidian-second-brain skill. Execute `/obsidian-graduate $ARGUMENTS`:
 
-The optional argument is the idea title, tag, or keyword. If not provided, scan recent notes for ideas tagged `#idea` or in the `Ideas/` folder and present them for selection.
+The optional argument is the idea title, tag, or keyword. If not provided, scan recent notes for ideas tagged `#idea` or in the ideas folder (resolved per `references/folder-map.md`) and present them for selection.
 
-1. Read `_CLAUDE.md` first if it exists in the vault root
+1. Read `_CLAUDE.md` first if it exists in the vault root. Resolve the ideas folder and projects folder per `references/folder-map.md` (wiki-style: ideas in `wiki/concepts/`, projects in `wiki/projects/`; Obsidian-style: `Ideas/`, `Projects/`).
 2. Find the idea to graduate:
-   - If argument given: search `Ideas/`, daily notes, and captures for a matching idea (fuzzy match)
+   - If argument given: search the ideas folder, daily notes, and captures for a matching idea (fuzzy match)
    - If no argument: list recent ideas (last 14 days) and ask the user to pick one
 3. Read the full idea note and any linked notes for context
 4. Research the vault for related content:
@@ -19,7 +19,7 @@ The optional argument is the idea title, tag, or keyword. If not provided, scan 
    - Past decisions that relate
    - Similar ideas that were previously explored (to avoid reinventing)
 5. Generate a full project spec:
-   - **Project note** in `Projects/` with complete frontmatter (date, tags, status: planning, linked idea)
+   - **Project note** in the projects folder (resolved above) with complete frontmatter (date, tags, status: planning, linked idea)
    - **Description**: what this project is and why it matters
    - **Goals**: 3-5 concrete outcomes
    - **Key tasks**: broken into phases with priorities

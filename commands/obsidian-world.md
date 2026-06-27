@@ -30,7 +30,7 @@ Use the obsidian-second-brain skill. Execute `/obsidian-world`:
    **L3 - Deep Context (on demand, ~5-20K tokens)**
    - Only load if needed for a specific question or task
    - Read active project notes (status: active) for current goals and blockers
-   - Read full source articles from Knowledge/ if the user asks about a specific topic
+   - Read full source/reference notes (the concept or knowledge folder per `references/folder-map.md` - wiki-style `wiki/concepts/` or `raw/`, Obsidian-style `Knowledge/`) if the user asks about a specific topic
    - Identify key people interacted with recently (last 7 days of daily notes)
 
 3. Present a brief status after L0-L2 (do NOT load L3 unless needed):

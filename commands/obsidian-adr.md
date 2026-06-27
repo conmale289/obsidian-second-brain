@@ -11,7 +11,7 @@ The optional argument is the decision topic. If not provided, infer from recent 
 1. Read `_CLAUDE.md` first if it exists in the vault root
 2. Identify the structural decision:
    - From the argument, or from recent conversation (e.g., a project was graduated, a folder was reorganized, a new convention was adopted, a concept was promoted to hub status)
-3. Create a decision record at `Knowledge/ADR-YYYY-MM-DD — Title.md`:
+3. Create a decision record in the decisions folder resolved per `references/folder-map.md` (read the vault's `_CLAUDE.md` Folder Map first; wiki-style `wiki/decisions/YYYY-MM-DD — Title.md`, Obsidian-style `Knowledge/ADR-YYYY-MM-DD — Title.md`):
 
    ```yaml
    ---

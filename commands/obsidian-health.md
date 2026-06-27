@@ -16,9 +16,9 @@ Use the obsidian-second-brain skill. Execute `/obsidian-health`:
    - **Frontmatter agent**: identify notes missing required fields by type. If the script reports a `code_fence_wrapped` note (frontmatter trapped inside a leading ```` ```markdown ```` fence), the fix is to **unwrap it** - strip the opening fence line and the matching closing ```` ``` ```` so the inner `---` frontmatter and body become real markdown. **Never add a new frontmatter block to a wrapped note** - that produces duplicate frontmatter and leaves the body trapped. If the note already has both a prepended frontmatter block and an inner wrapped one, merge them (keep the richer fields) and unwrap.
    - **Staleness agent**: check overdue tasks and unfilled template syntax
    - **Orphans agent**: check orphaned notes and empty folders
-   - **Contradictions agent**: scan Key Decisions sections and Knowledge/ notes for claims that conflict with each other or have been superseded by newer sources
+   - **Contradictions agent**: scan Key Decisions sections and reference/concept notes (the concept or knowledge folder per `references/folder-map.md` - wiki-style `wiki/concepts/`, Obsidian-style `Knowledge/`) for claims that conflict with each other or have been superseded by newer sources
    - **Concept gaps agent**: find terms mentioned 3+ times across different notes that lack a dedicated page - these are missing concepts the vault should have
-   - **Stale claims agent**: compare Knowledge/ notes against their source dates - flag any note older than 6 months that references fast-moving topics (tools, APIs, pricing, team structure)
+   - **Stale claims agent**: compare reference/concept notes (the concept or knowledge folder per `references/folder-map.md` - wiki-style `wiki/concepts/`, Obsidian-style `Knowledge/`) against their source dates - flag any note older than 6 months that references fast-moving topics (tools, APIs, pricing, team structure)
 5. Merge results and group by severity:
    - 🔴 Critical: unfilled template syntax, contradictions between notes, code-fence-wrapped notes (frontmatter trapped in a fence)
    - 🟡 Warning: duplicates, stale tasks, missing frontmatter, stale claims, concept gaps

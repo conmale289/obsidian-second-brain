@@ -664,6 +664,17 @@ Keys you need:
 
 Without keys, the 35 non-research commands work fully, and `/research` + `/research-deep` fall back to free, key-less sources. The rest of the research toolkit degrades gracefully.
 
+### Semantic search (optional, off by default)
+
+Search (`/obsidian-find` and the MCP connector) works out of the box as fast keyword search - **no setup, no model, nothing to install.** You can optionally add a meaning-based layer that finds notes even when your query shares no words with them. It is opt-in by setup and, when present, fuses with keyword search (measured best of both: keyword recall@10 80% -> 91%, paraphrased 17% -> ~46% on a 1,000-note vault). If the model is ever unreachable, search silently falls back to keyword - it never breaks or hangs.
+
+Two ways to provide the embedding model:
+
+- **Local + private (recommended), via [Ollama](https://ollama.com):** install Ollama, `ollama pull mxbai-embed-large`, then build the index once: `uv run python scripts/eval/semantic_search.py --path "<vault>" --build`. Your notes never leave the machine.
+- **No Ollama? Any OpenAI-compatible endpoint.** Set `OBSIDIAN_EMBED_BACKEND=openai`, `OBSIDIAN_EMBED_URL=<base url>`, `OBSIDIAN_EMBED_MODEL=<model>`, and `OBSIDIAN_EMBED_KEY=<key if needed>`. This covers other local runtimes (LM Studio, llama.cpp's server) for free/private use, **or** a cloud API (OpenAI, a gateway) for top quality - note a cloud endpoint means note text leaves your machine, so use `OBSIDIAN_EMBED_EXCLUDE=<folder prefixes>` to keep private folders local-only.
+
+Knobs: `OBSIDIAN_SEARCH_SEMANTIC=0` disables the layer entirely; the index is rebuilt incrementally (only changed notes re-embed) so re-run `--build` occasionally as the vault grows. The index file is large and regenerable - gitignore it.
+
 ---
 
 ## FAQ

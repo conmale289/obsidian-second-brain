@@ -63,6 +63,11 @@ _SEARCH_LENGTH_NORM = os.environ.get("OBSIDIAN_SEARCH_LENGTHNORM", "1") != "0"
 _SEMANTIC_INDEX_FILE = ".obsidian-semantic-index.json"
 _OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434").rstrip("/")
 _EMBED_MODEL = os.environ.get("OBSIDIAN_EMBED_MODEL", "mxbai-embed-large")
+# Backend mirrors scripts/eval/semantic_search.py: "ollama" (default, local) or
+# "openai" (any OpenAI-compatible /v1/embeddings - other local runtimes or a cloud API).
+_EMBED_BACKEND = os.environ.get("OBSIDIAN_EMBED_BACKEND", "ollama").lower()
+_EMBED_URL = os.environ.get("OBSIDIAN_EMBED_URL", _OLLAMA_URL).rstrip("/")
+_EMBED_KEY = os.environ.get("OBSIDIAN_EMBED_KEY", "")
 _SEMANTIC_ENABLED = os.environ.get("OBSIDIAN_SEARCH_SEMANTIC", "1") != "0"
 _RRF_K = 60
 _FUSE_DEPTH = 25  # how many from each ranking feed the fusion
@@ -95,16 +100,28 @@ def _cosine(a: List[float], b: List[float]) -> float:
 
 
 def _embed_query(text: str) -> Optional[List[float]]:
-    """One fast local-model call for the query. Short timeout, no retries - search
-    must stay snappy; if the model is slow/absent we fall back to lexical."""
-    payload = json.dumps(
-        {"model": _EMBED_MODEL, "prompt": text[:1200], "keep_alive": "15m"}
-    ).encode()
-    req = urllib.request.Request(
-        f"{_OLLAMA_URL}/api/embeddings", data=payload, headers={"Content-Type": "application/json"}
-    )
+    """One fast embedding call for the query via the configured backend. Short
+    timeout, no retries - search must stay snappy; on any failure the caller falls
+    back to lexical. Supports Ollama (default) and OpenAI-compatible endpoints."""
+    if _EMBED_BACKEND == "openai":
+        headers = {"Content-Type": "application/json"}
+        if _EMBED_KEY:
+            headers["Authorization"] = f"Bearer {_EMBED_KEY}"
+        body = json.dumps({"model": _EMBED_MODEL, "input": text[:1200]}).encode()
+        url = f"{_EMBED_URL}/v1/embeddings"
+    else:
+        body = json.dumps({"model": _EMBED_MODEL, "prompt": text[:1200], "keep_alive": "15m"}).encode()
+        url = f"{_EMBED_URL}/api/embeddings"
+    req = urllib.request.Request(url, data=body, headers=headers if _EMBED_BACKEND == "openai"
+                                else {"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=10) as r:
-        return json.loads(r.read()).get("embedding")
+        data = json.loads(r.read())
+    if data.get("embedding"):
+        return data["embedding"]
+    items = data.get("data")
+    if items and isinstance(items, list) and items[0].get("embedding"):
+        return items[0]["embedding"]
+    return None
 
 
 def _semantic_fuse(

@@ -39,6 +39,16 @@ from pathlib import Path
 
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434").rstrip("/")
 EMBED_MODEL = os.environ.get("OBSIDIAN_EMBED_MODEL", "mxbai-embed-large")
+# Backend selects how embeddings are produced:
+#   "ollama" (default) - local Ollama at OLLAMA_URL, fully private/offline.
+#   "openai" - ANY OpenAI-compatible /v1/embeddings endpoint, so users without
+#              Ollama can point at another local runtime (LM Studio, llama.cpp)
+#              or a cloud API (OpenAI, a gateway). Set OBSIDIAN_EMBED_URL (base) and
+#              OBSIDIAN_EMBED_KEY (if the endpoint needs auth). Cloud = text leaves
+#              the machine, so keep the OBSIDIAN_EMBED_EXCLUDE carve-out in mind.
+EMBED_BACKEND = os.environ.get("OBSIDIAN_EMBED_BACKEND", "ollama").lower()
+EMBED_URL = os.environ.get("OBSIDIAN_EMBED_URL", OLLAMA_URL).rstrip("/")
+EMBED_KEY = os.environ.get("OBSIDIAN_EMBED_KEY", "")
 EXCLUDE_PREFIXES = tuple(
     p.strip() for p in os.environ.get("OBSIDIAN_EMBED_EXCLUDE", "").split(",") if p.strip()
 )
@@ -55,6 +65,9 @@ _MAX_CHUNKS = 8
 # Ollama (local) embedding calls
 # --------------------------------------------------------------------------- #
 def ollama_available() -> bool:
+    """Is the embedding backend reachable? (Name kept for callers.)"""
+    if EMBED_BACKEND == "openai":
+        return bool(EMBED_URL)  # assume configured endpoint is up; embed() falls back on error
     try:
         with urllib.request.urlopen(f"{OLLAMA_URL}/api/tags", timeout=3) as r:
             return r.status == 200
@@ -65,39 +78,52 @@ def ollama_available() -> bool:
 _RETRY_WAITS = (1, 3, 8, 15)  # a local model on a laptop can briefly 500 under rapid load
 
 
+def _embed_request(text: str) -> tuple[str, bytes, dict]:
+    """Build the (url, body, headers) for the configured backend."""
+    if EMBED_BACKEND == "openai":
+        headers = {"Content-Type": "application/json"}
+        if EMBED_KEY:
+            headers["Authorization"] = f"Bearer {EMBED_KEY}"
+        body = json.dumps({"model": EMBED_MODEL, "input": text[:_CHUNK_CHARS]}).encode()
+        return f"{EMBED_URL}/v1/embeddings", body, headers
+    # ollama (default): keep_alive holds the model in memory between calls
+    body = json.dumps({"model": EMBED_MODEL, "prompt": text[:_CHUNK_CHARS], "keep_alive": "15m"}).encode()
+    return f"{EMBED_URL}/api/embeddings", body, {"Content-Type": "application/json"}
+
+
+def _parse_embedding(data: dict) -> list[float] | None:
+    """Pull the vector out of either response shape."""
+    if data.get("embedding"):                       # ollama
+        return data["embedding"]
+    items = data.get("data")                         # openai-compatible
+    if items and isinstance(items, list) and items[0].get("embedding"):
+        return items[0]["embedding"]
+    return None
+
+
 def embed(text: str) -> list[float]:
-    """Return the embedding vector for one text via the local Ollama model.
+    """Return the embedding vector for one text via the configured backend.
 
     Retries transient errors (HTTP 5xx, connection resets): a local model on a
     laptop can buckle under rapid sequential calls, then recover a second later.
-    `keep_alive` holds the model in memory so it does not unload/reload between
-    calls and thrash. The last failure is raised so the caller can skip the note.
+    The last failure is raised so the caller can skip the note.
     """
-    payload = json.dumps(
-        {"model": EMBED_MODEL, "prompt": text[:_CHUNK_CHARS], "keep_alive": "15m"}
-    ).encode()
+    url, body, headers = _embed_request(text)
     last_err: Exception | None = None
     for attempt in range(len(_RETRY_WAITS) + 1):
         try:
-            req = urllib.request.Request(
-                f"{OLLAMA_URL}/api/embeddings", data=payload,
-                headers={"Content-Type": "application/json"},
-            )
+            req = urllib.request.Request(url, data=body, headers=headers)
             with urllib.request.urlopen(req, timeout=120) as r:
-                data = json.loads(r.read())
-            vec = data.get("embedding")
+                vec = _parse_embedding(json.loads(r.read()))
             if vec:
                 return vec
-            last_err = RuntimeError(
-                f"Ollama returned no embedding (is '{EMBED_MODEL}' pulled? run: ollama pull {EMBED_MODEL})"
-            )
+            last_err = RuntimeError(f"backend returned no embedding (model '{EMBED_MODEL}')")
         except (urllib.error.HTTPError, urllib.error.URLError, ConnectionError, TimeoutError) as e:
             last_err = e
         if attempt < len(_RETRY_WAITS):
             time.sleep(_RETRY_WAITS[attempt])
     raise RuntimeError(
-        f"Local model at {OLLAMA_URL} failed after retries ({last_err}). "
-        f"Is Ollama running and '{EMBED_MODEL}' pulled?"
+        f"Embedding backend '{EMBED_BACKEND}' at {EMBED_URL} failed after retries ({last_err})."
     )
 
 

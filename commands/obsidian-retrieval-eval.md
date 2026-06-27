@@ -28,7 +28,7 @@ The optional argument is a number of cases to (re)generate first (e.g. `30`), or
 
 5. Turn failures into concrete, testable retrieval fixes ranked by leverage - e.g. exclude `raw/` and `log.md` from search, boost notes by `type:` (canonical concept/entity/project over transcripts), add alias/heading indexing, or add semantic matching. Each fix is a hypothesis: re-run this eval on the SAME cases after the change to confirm it actually raised recall, never assume.
 
-6. If the user passed `report` (or asks to save), write an AI-first baseline note to `wiki/concepts/` (resolve per `references/folder-map.md`), `type: synthesis`, tagged `[retrieval, eval]`, linked from `[[Retrieval Quality — Eval & Upgrade]]` if that project note exists: record the engine, the case count, the recall@k / MRR numbers with the date as a recency marker, the top failure patterns with example notes, and the ranked fix hypotheses. This is the before-number every future retrieval change is measured against.
+6. If the user passed `report` (or asks to save), write an AI-first baseline note to `wiki/concepts/` (resolve per `references/folder-map.md`), `type: synthesis`, tagged `[retrieval, eval]`, linked from a retrieval-quality project note if one exists: record the engine, the case count, the recall@k / MRR numbers with the date as a recency marker, the top failure patterns with example notes, and the ranked fix hypotheses. This is the before-number every future retrieval change is measured against.
 
 Measure, change one thing, measure again. That loop - not a guess about vector databases - is how retrieval actually improves.
 

@@ -7,7 +7,7 @@ canvas, and the interpretation; the counting is done here, fast and exactly.
 
 Pure stdlib. Mirrors vault_health.py's link handling: code fences/inline code are
 stripped before scanning (so example links don't count), and em/en dashes are
-normalized so `[[A - B]]` resolves to a file named `A — B.md`.
+normalized so `[[A - B]]` resolves to a file named with an em/en dash too.
 
 Usage:
     python scripts/link_graph.py --path "/path/to/vault" [--json]
@@ -32,7 +32,7 @@ INLINE_CODE_RE = re.compile(r"`[^`]*`")
 TYPE_RE = re.compile(r"(?m)^type:\s*[\"']?([A-Za-z0-9_-]+)")
 ALIAS_BLOCK_RE = re.compile(r"(?ms)^aliases:\s*\n((?:\s*-\s*.+\n?)+)")
 ALIAS_INLINE_RE = re.compile(r"(?m)^aliases:\s*\[(.+)\]")
-EM_DASH, EN_DASH = "—", "–"
+EM_DASH, EN_DASH = "\u2014", "\u2013"
 
 
 def _norm(s: str) -> str:

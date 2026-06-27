@@ -106,7 +106,7 @@ See `references/vault-schema.md` for full structural details.
 ## Core Operating Principles
 
 ### AI-first vault rule (applies to every note)
-The vault is designed for **future-Claude** to read and reason over, not for human review. Every note Claude writes - across all 45 commands - must follow `references/ai-first-rules.md`:
+The vault is designed for **future-Claude** to read and reason over, not for human review. Every note Claude writes - across all 44 commands - must follow `references/ai-first-rules.md`:
 
 1. **Self-contained context** - each note explains itself; don't rely on backlinks alone
 2. **"For future Claude" preamble** - 2-3 sentence summary so Claude can decide relevance in 10 seconds
@@ -889,26 +889,13 @@ If `index.md` doesn't exist, offer to run `/obsidian-init` to generate it.
 
 ---
 
-### `/obsidian-adr`
+### `/obsidian-decide [topic] [--formal]`
 
-**Generates a decision record when the vault structure changes.**
+**Records decisions at two depths.** Default mode captures the decisions made in a conversation as dated one-liners appended to the relevant project notes' `## Key Decisions` sections (and the daily note) - for the steady stream of choices made while working. `--formal` (or leading with `adr`) instead writes one full Architecture Decision Record - Decision / Context / Options Considered / Rationale / Consequences / Related - to the decisions folder (resolved per `references/folder-map.md`: wiki-style `wiki/decisions/`, Obsidian-style `Knowledge/`), links it from the project's Key Decisions and `index.md`, and logs it. Use the formal mode for a structural or directional decision worth a real writeup; `python scripts/mine_commit_decisions.py` surfaces decision-shaped commits as ADR candidates.
 
-Steps:
-1. Identify the structural decision from the argument or conversation context
-2. Create `Knowledge/ADR-YYYY-MM-DD — Title.md` with:
-   - **Decision**: one-line summary
-   - **Context**: what prompted this
-   - **Options Considered**: 2-3 alternatives evaluated
-   - **Rationale**: why this option won
-   - **Consequences**: what changed - notes created, moved, or restructured
-   - **Related**: links to affected notes
-3. Update the relevant project note's Key Decisions section with a link to the ADR
-4. Update `index.md` and append to `log.md`
-5. Link from today's daily note
+The vault knows why it's structured the way it is - when a future session asks "why?", the formal record answers. `/obsidian-graduate`, `/obsidian-health` structural fixes, and folder reorganizations may offer to write a formal record; they offer, they don't force.
 
-The vault knows why it's structured the way it is. When a future session asks "why?" - the ADR has the answer.
-
-Can also be triggered automatically by `/obsidian-graduate`, `/obsidian-health` structural fixes, or folder reorganizations. In those cases, offer to create an ADR - don't force it.
+(Consolidated: the former standalone `/obsidian-adr` is now `/obsidian-decide --formal`; its triggers still route here.)
 
 ---
 

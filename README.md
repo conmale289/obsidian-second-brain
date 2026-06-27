@@ -264,7 +264,6 @@ Free transcript via youtube-transcript-api. Optional metadata + top comments via
 | `/obsidian-log` | Logs a work session, links it everywhere |
 | `/obsidian-task` | Adds task to the right board with priority and due date |
 | `/obsidian-person` | Creates or updates a person note |
-| `/obsidian-decide` | Logs decisions to the right project note |
 | `/obsidian-capture` | Zero-friction idea capture |
 | `/obsidian-catchup` | Process captures dumped from the Telegram bot (voice/text/image/PDF/link) into the vault |
 | `/obsidian-find` | Smart search with context |
@@ -276,7 +275,7 @@ Free transcript via youtube-transcript-api. Optional metadata + top comments via
 | `/obsidian-projects` | Live project status from git + local docs -- infers all context from vault notes, no config required |
 | `/obsidian-health` | Vault audit -- contradictions, gaps, stale claims, orphans |
 | `/obsidian-retrieval-eval` | Measures vault search quality -- recall@k + MRR on natural-language questions, with the concrete failures and ranked fixes |
-| `/obsidian-adr` | Decision records -- the vault knows why it's structured this way |
+| `/obsidian-decide [--formal]` | Logs decisions to the right project notes; `--formal` writes a full ADR record (the vault knows why it's structured this way) |
 | `/obsidian-visualize` | Generates a visual canvas map of your second brain |
 | `/obsidian-learn` | Reviews vault learnings, prunes stale ones, surfaces patterns to promote into rules |
 | `/obsidian-init` | Generates `_CLAUDE.md`, `index.md`, `log.md` |

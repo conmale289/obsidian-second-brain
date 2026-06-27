@@ -8,10 +8,11 @@ Use the obsidian-second-brain skill. Execute `/podcast [url]`:
 
 1. Resolve the podcast URL from the user's argument. Accept any of:
    - Apple Podcasts episode URL (`https://podcasts.apple.com/.../id<show>?i=<episode>`)
+   - Spotify episode URL (`https://open.spotify.com/episode/<id>`) - Spotify's own audio is DRM-locked, so the script bridges it to the show's public RSS feed: it reads the episode title from Spotify's key-free oEmbed endpoint, finds that episode in Apple's index to get the feed URL, then pulls the episode from the open feed by title. Works for any show that also publishes an open feed (most do); fails clearly for Spotify-exclusive shows with no public RSS.
    - Direct RSS feed URL (uses the latest episode unless `?episode=<guid>` selector is appended)
    - Direct RSS feed URL with `?episode=<guid-fragment-or-link-fragment>` selector
 
-   If no input given, ask: "Which podcast episode? Paste the Apple Podcasts link or RSS feed URL." Spotify URLs are not supported (DRM blocks audio + transcript access). Surface this clearly if pasted.
+   If no input given, ask: "Which podcast episode? Paste the Apple Podcasts, Spotify, or RSS feed URL."
 
 2. Run the Python command from the repo root (`~/Projects/personal/obsidian-second-brain/`):
    ```bash

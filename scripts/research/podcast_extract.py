@@ -124,11 +124,10 @@ def main(argv: list[str]) -> int:
     user_input = argv[1].strip()
     if "spotify.com" in user_input.lower():
         print(
-            "❌ Spotify URLs aren't supported (DRM blocks audio + transcript access).\n"
-            "   Try the Apple Podcasts URL or the show's RSS feed instead.",
+            "[/podcast] Spotify link detected - bridging to the show's public RSS feed "
+            "(Spotify audio is DRM-locked; the same episode is read from the open feed).",
             file=sys.stderr,
         )
-        return 2
 
     print(f"[/podcast] Resolving {user_input}...", file=sys.stderr)
     try:

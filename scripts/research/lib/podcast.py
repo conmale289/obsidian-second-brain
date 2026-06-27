@@ -23,11 +23,60 @@ from urllib.parse import urlparse, parse_qs
 import requests
 
 ITUNES_LOOKUP = "https://itunes.apple.com/lookup"
+ITUNES_SEARCH = "https://itunes.apple.com/search"
 APPLE_RE = re.compile(r"podcasts\.apple\.com/.+/id(\d+)(?:\?i=(\d+))?", re.IGNORECASE)
+SPOTIFY_RE = re.compile(r"open\.spotify\.com/(?:episode|show)/", re.IGNORECASE)
+SPOTIFY_OEMBED = "https://open.spotify.com/oembed"
 
 
 def is_apple_url(s: str) -> bool:
     return bool(APPLE_RE.search(s))
+
+
+def is_spotify_url(s: str) -> bool:
+    return bool(SPOTIFY_RE.search(s))
+
+
+def _norm_title(s: str) -> str:
+    """Loose title key for matching across platforms: lowercase alphanumerics only."""
+    return re.sub(r"[^a-z0-9]+", "", (s or "").lower())
+
+
+def resolve_spotify_to_feed(spotify_url: str) -> tuple[str, str]:
+    """Bridge a Spotify episode URL to a public RSS feed + episode title.
+
+    Spotify's own audio is DRM-locked and has no RSS, but the same episode is almost
+    always published to an open podcast feed. We read the episode title from Spotify's
+    key-free oEmbed endpoint, then find that episode in Apple's index (which exposes the
+    feedUrl). The episode is then pulled from that feed by title, not from Spotify.
+    """
+    o = requests.get(SPOTIFY_OEMBED, params={"url": spotify_url}, timeout=15)
+    if o.status_code != 200:
+        raise ValueError(
+            "Could not read this Spotify link (oEmbed returned "
+            f"{o.status_code}). Make sure it is a public episode URL."
+        )
+    title = (o.json().get("title") or "").strip()
+    if not title:
+        raise ValueError("Spotify did not return an episode title for that URL.")
+
+    resp = requests.get(
+        ITUNES_SEARCH,
+        params={"media": "podcast", "entity": "podcastEpisode", "term": title, "limit": 5},
+        timeout=15,
+    )
+    resp.raise_for_status()
+    results = resp.json().get("results", [])
+    want = _norm_title(title)
+    best = next((r for r in results if _norm_title(r.get("trackName", "")) == want), None)
+    if best is None:
+        best = results[0] if results else None
+    if not best or not best.get("feedUrl"):
+        raise ValueError(
+            f"Found the Spotify episode '{title}' but could not match it to a public "
+            "podcast feed - it may be a Spotify-exclusive show with no open RSS."
+        )
+    return best["feedUrl"], title
 
 
 def is_url(s: str) -> bool:
@@ -55,7 +104,9 @@ def resolve_apple_to_rss(apple_url: str) -> tuple[str, str | None]:
     return feed_url, episode_id
 
 
-def parse_feed(feed_url: str, episode_id: str | None = None) -> dict[str, Any]:
+def parse_feed(
+    feed_url: str, episode_id: str | None = None, episode_title: str | None = None
+) -> dict[str, Any]:
     """Parse an RSS feed and return episode metadata + audio URL + show-notes + transcript-tag-url."""
     try:
         import feedparser
@@ -70,7 +121,7 @@ def parse_feed(feed_url: str, episode_id: str | None = None) -> dict[str, Any]:
     show_title = (parsed.feed.get("title") or "").strip() or "(unknown show)"
     show_author = (parsed.feed.get("author") or parsed.feed.get("itunes_author") or "").strip()
 
-    entry = _pick_entry(parsed.entries, episode_id)
+    entry = _pick_entry(parsed.entries, episode_id, episode_title)
     if entry is None:
         raise ValueError("No entries found in feed")
 
@@ -93,7 +144,9 @@ def parse_feed(feed_url: str, episode_id: str | None = None) -> dict[str, Any]:
     }
 
 
-def _pick_entry(entries: list[Any], episode_id: str | None) -> Any | None:
+def _pick_entry(
+    entries: list[Any], episode_id: str | None, episode_title: str | None = None
+) -> Any | None:
     if not entries:
         return None
     if episode_id:
@@ -103,6 +156,21 @@ def _pick_entry(entries: list[Any], episode_id: str | None) -> Any | None:
         print(
             f"[podcast: episode id '{episode_id}' not found in feed (feed may be paginated "
             f"and only serve recent episodes); falling back to most recent entry.]",
+            file=sys.stderr,
+        )
+    if episode_title:
+        want = _norm_title(episode_title)
+        exact = next((e for e in entries if _norm_title(e.get("title", "")) == want), None)
+        if exact is not None:
+            return exact
+        partial = next(
+            (e for e in entries if want and want in _norm_title(e.get("title", ""))), None
+        )
+        if partial is not None:
+            return partial
+        print(
+            f"[podcast: episode '{episode_title}' not found in feed (it may be older than "
+            "the feed's window); falling back to most recent entry.]",
             file=sys.stderr,
         )
     return entries[0]
@@ -310,6 +378,13 @@ def resolve_input(user_input: str) -> dict[str, Any]:
     if is_apple_url(s):
         feed_url, episode_id = resolve_apple_to_rss(s)
         episode = parse_feed(feed_url, episode_id=episode_id)
+        episode["source_url"] = s
+        episode["feed_url"] = feed_url
+        return episode
+
+    if is_spotify_url(s):
+        feed_url, episode_title = resolve_spotify_to_feed(s)
+        episode = parse_feed(feed_url, episode_title=episode_title)
         episode["source_url"] = s
         episode["feed_url"] = feed_url
         return episode
